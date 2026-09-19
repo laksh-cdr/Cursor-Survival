@@ -167,79 +167,6 @@ canvas.game-running {
   pointer-events: auto
 }
 
-.ad-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: grid;
-  place-items: center;
-  background: rgba(2, 4, 10, .72);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .2s ease
-}
-
-.ad-modal.open {
-  opacity: 1;
-  pointer-events: auto
-}
-
-.ad-panel {
-  width: min(430px, calc(100vw - 30px));
-  padding: 22px 22px 18px;
-  border: 1px solid #4a628c;
-  background: #0b111c;
-  box-shadow: 0 0 70px rgba(0, 0, 0, .7);
-  text-align: center
-}
-
-.ad-header {
-  font-size: 10px;
-  letter-spacing: .16em;
-  color: #ffd36b
-}
-
-.ad-title {
-  margin-top: 12px;
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: .04em
-}
-
-.ad-copy {
-  margin-top: 10px;
-  color: #9fb0c9;
-  font-size: 12px;
-  line-height: 1.6
-}
-
-.ad-countdown {
-  margin-top: 20px;
-  font-size: 30px;
-  font-weight: 700;
-  color: #70dcff
-}
-
-.ad-progress {
-  height: 8px;
-  margin-top: 12px;
-  background: #1b2637;
-  overflow: hidden
-}
-
-.ad-progress span {
-  display: block;
-  height: 100%;
-  width: 0;
-  background: linear-gradient(90deg, #ff4666, #ffaf58);
-  transition: width .2s ease
-}
-
-.ad-close-button {
-  margin-top: 16px;
-  width: 100%
-}
-
 .debug-panel {
   position: fixed;
   right: 12px;
@@ -289,17 +216,13 @@ canvas.game-running {
 .power-card:hover { border-color: #70dcff; transform: translateY(-2px) }
 .power-card:hover { background: #132239 }
 .power-card.selected { border-color: #63f1ce; box-shadow: 0 0 22px rgba(99, 241, 206, .25) }
-.power-select-button, .power-ad-button { width: 100%; text-align: left; padding: 0; background: transparent; border: 0; letter-spacing: .08em; color: inherit }
-.power-select-button { display: flex; flex-direction: column; align-items: stretch; padding: 0; cursor: pointer }
-.power-ad-button { margin-top: 12px; padding-top: 8px; border-top: 1px solid #2f415f; color: #ffd36b; font-size: 10px; text-transform: uppercase; cursor: pointer }
+.power-select-button { width: 100%; display: flex; flex-direction: column; align-items: stretch; padding: 0; background: transparent; border: 0; letter-spacing: .08em; color: inherit; cursor: pointer }
 .power-icon { display: block; margin-bottom: 11px; color: #70dcff; font-size: 22px }
 .power-name { display: block; color: #f0f6ff; font-size: 13px; font-weight: 700; letter-spacing: .05em }
 .power-description { display: block; min-height: 43px; margin: 10px 0; color: #9fb0c9; font-size: 11px; line-height: 1.5 }
 .power-cost { display: block; margin-top: auto; color: #ffd36b; font-size: 10px; letter-spacing: .08em }
 .power-actions { display: flex; gap: 10px; margin-top: 15px }
-.continue-power, .power-ad-action { flex: 1; width: auto; min-width: 0 }
-.power-ad-action { background: #12263f; border-color: #3b587e; color: #ffd36b; display: none }
-.power-ad-action:not([hidden]) { display: inline-block }
+.continue-power { flex: 1; width: auto; min-width: 0 }
 
 .shop-panel {
   width: min(720px, 100%);
@@ -334,8 +257,6 @@ canvas.game-running {
 .shop-status { min-height: 20px; margin: 10px 0; color: #aebbd0; font-size: 11px }
 .shop-action { width: 100%; background: #1d3654 }
 .shop-action:not(:disabled) { background: #ff4666; border-color: #ff4666 }
-.shop-ad-action { width: 100%; margin-top: 10px; background: #12263f; border-color: #3b587e; color: #ffd36b }
-.shop-ad-action:hover { background: #184061; border-color: #70dcff }
 button:disabled { opacity: .45; cursor: not-allowed }
 
 #overlay {
@@ -374,7 +295,7 @@ p {
 }
 
 #message button,
-#message .reward-option {
+#message button {
   display: block;
   width: 100%;
   margin-top: 14px;

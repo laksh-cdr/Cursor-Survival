@@ -18,19 +18,11 @@
     shopStatus: document.querySelector('#shopStatus'), shopAction: document.querySelector('#shopAction'),
     powerModal: document.querySelector('#powerModal'), phaseTitle: document.querySelector('#phaseTitle'),
     phaseSummary: document.querySelector('#phaseSummary'), powerGrid: document.querySelector('#powerGrid'),
-    continueWithoutPower: document.querySelector('#continueWithoutPower'), powerAdAction: document.querySelector('#powerAdAction'),
+    continueWithoutPower: document.querySelector('#continueWithoutPower'),
   };
   const DAMAGE = { projectile: 10, slash: 20, patch: 15, enemy: 10, laser: 20 };
   const PHASE = { WARNING: 'warning', ACTIVE: 'active' };
   const STORAGE_KEY = { coins: 'cursorSurvivalCoins', skins: 'cursorSurvivalOwnedSkins', equipped: 'cursorSurvivalEquippedSkin', bestScore: 'cursorSurvivalBestScore', bestPhase: 'cursorSurvivalBestPhase', totalCoinsEarned: 'cursorSurvivalTotalCoinsEarned' };
-  const AD_REWARDS = {
-    SHOP_COINS: 50,
-    DOUBLE_RUN_REWARD: 2,
-    REVIVE_HP_PERCENT: 0.30,
-    COOLDOWN_SECONDS: 5,
-    MIN_AD_SECONDS: 3,
-    MAX_AD_SECONDS: 5,
-  };
   const SKINS = [
     { id: 'default', name: 'White', type: 'solid', price: 0, color: '#f5fbff' },
     { id: 'red', name: 'Red', type: 'solid', price: 10, color: '#ff566e' },
@@ -102,11 +94,11 @@
     return {
       isRunning: false, isOver: false, isPaused: false, health: 100, level: 1,
       elapsed: 0, levelElapsed: 0, intermission: 1.8, nextAttackIn: 0, nextCoinIn: 4,
-      points: 0, pointRemainder: 0, phasePoints: 0, phaseChoices: [], rewardGranted: false,
+      points: 0, pointRemainder: 0, phasePoints: 0, phaseChoices: [],
       score: 0, grazes: 0, invulnerability: 0, screenShake: 0, damageFlash: 0,
       projectiles: [], slashes: [], patches: [], bursts: [], enemies: [], lasers: [], coins: [], coinPopups: [], particles: [],
       powers: { shield: 0, invincibility: 0, invisibility: 0, slowTime: 0, scoreBoost: 0 }, shieldFlash: 0,
-      banner: 'PHASE 1', runRewardBase: 0, runRewardClaimed: false, runRewardDoubled: false, runCoinsCollected: 0,
+      banner: 'PHASE 1', runCoinsCollected: 0,
     };
   }
   function resetGame() { game = createGameState(); updateHud(); }
@@ -473,15 +465,6 @@
   }
 
   // Phase and power-up selection --------------------------------------------
-  function syncPowerAdButton() {
-    const selectedPower = selectedPowerId ? getPowerById(selectedPowerId) : null;
-    const button = ui.powerAdAction;
-    const visible = Boolean(selectedPower);
-    if (button) {
-      button.hidden = !visible;
-      button.textContent = visible ? `WATCH ADS FOR ${selectedPower.name}` : 'WATCH ADS FOR POWER-UP';
-    }
-  }
   function renderPowerChoices() {
     selectedPowerId = null;
     ui.powerGrid.replaceChildren();
@@ -490,7 +473,7 @@
       const card = document.createElement('div');
       card.className = 'power-card';
       const boostedDuration = powerDurationFor(power);
-      const actionText = affordable ? `${power.cost} POINTS · SELECT` : 'WATCH ADS FOR POWERUP';
+      const actionText = affordable ? `${power.cost} POINTS · SELECT` : `${power.cost} POINTS · NEED MORE`;
       card.innerHTML = `
         <button type="button" class="power-select-button">
           <span class="power-icon">${power.icon}</span>
@@ -507,19 +490,16 @@
           current.disabled = false;
           choice.classList.toggle('selected', choice === card);
         }
-        syncPowerAdButton();
+        choosePower(power, card);
       };
       ui.powerGrid.append(card);
     }
     ui.continueWithoutPower.hidden = false;
-    syncPowerAdButton();
   }
   function choosePower(power, card) {
     if (game.powerSelecting) return;
     if (game.points < power.cost) {
-      selectedPowerId = power.id;
-      syncPowerAdButton();
-      triggerPowerRewardAd(power);
+      ui.phaseSummary.textContent = `${power.name} costs ${power.cost} points. Earn more to claim it or continue without a power-up.`;
       return;
     }
     game.powerSelecting = true;
@@ -531,24 +511,8 @@
     updateHud();
     setTimeout(() => { game.powerSelecting = false; beginNextPhase(); }, 220);
   }
-  function triggerPowerRewardAd(power) {
-    selectedPowerId = power.id;
-    syncPowerAdButton();
-    AdManagerInstance.showRewarded({
-      rewardType: 'powerup',
-      powerUpId: power.id,
-      onReward: () => {
-        RewardManager.grantPowerUp(power.id);
-        ui.phaseSummary.textContent = `${power.name} granted through a rewarded ad — entering the next phase.`;
-        beginNextPhase();
-      },
-      onFailure: () => { ui.phaseSummary.textContent = 'Rewarded ad failed. You may continue without a power-up.'; },
-      onSkip: () => { ui.phaseSummary.textContent = 'Ad skipped — reward not granted.'; }
-    });
-  }
   function continueWithoutPower() {
     selectedPowerId = null;
-    syncPowerAdButton();
     beginNextPhase();
   }
 
@@ -573,13 +537,11 @@
   }
   function updateShopAction() {
     const selected = selectedSkinId ? getSkin(selectedSkinId) : null;
-    const adButton = document.getElementById('shopAdAction');
     if (!selected) {
       ui.shopStatus.textContent = 'Select a cursor skin.';
       ui.shopAction.textContent = 'SELECT A SKIN';
       ui.shopAction.disabled = true;
       ui.shopAction.onclick = () => {};
-      if (adButton) { adButton.hidden = true; adButton.onclick = () => {}; }
       return;
     }
     if (selected.id === equippedSkinId) {
@@ -587,7 +549,6 @@
       ui.shopAction.textContent = 'EQUIPPED';
       ui.shopAction.disabled = true;
       ui.shopAction.onclick = () => {};
-      if (adButton) { adButton.hidden = true; adButton.onclick = () => {}; }
       return;
     }
     if (ownedSkinIds.has(selected.id)) {
@@ -595,33 +556,12 @@
       ui.shopAction.textContent = 'EQUIP';
       ui.shopAction.disabled = false;
       ui.shopAction.onclick = buyOrEquipSelectedSkin;
-      if (adButton) { adButton.hidden = true; adButton.onclick = () => {}; }
       return;
     }
     ui.shopStatus.textContent = `You need ${selected.price - wallet} more coins for ${selected.name}.`;
     ui.shopAction.textContent = `BUY · ${selected.price} COINS`;
     ui.shopAction.disabled = wallet < selected.price;
     ui.shopAction.onclick = buyOrEquipSelectedSkin;
-    if (adButton) {
-      adButton.hidden = false;
-      adButton.textContent = `WATCH ADS FOR +${AD_REWARDS.SHOP_COINS} COINS`;
-      adButton.onclick = () => triggerShopCoinReward(selected);
-    }
-  }
-  function triggerShopCoinReward(skin) {
-    const rewardSkin = skin || (selectedSkinId ? getSkin(selectedSkinId) : null);
-    if (!rewardSkin) return;
-    AdManagerInstance.showRewarded({
-      rewardType: 'coins',
-      rewardAmount: AD_REWARDS.SHOP_COINS,
-      onReward: () => {
-        addCoins(AD_REWARDS.SHOP_COINS);
-        ui.shopStatus.textContent = `${rewardSkin.name} reward granted. You can now purchase the skin.`;
-        renderShop();
-      },
-      onFailure: () => { ui.shopStatus.textContent = 'Ad failed — no coins were granted.'; },
-      onSkip: () => { ui.shopStatus.textContent = 'Ad skipped — reward not granted.'; }
-    });
   }
   function buyOrEquipSelectedSkin() {
     const skin = selectedSkinId ? getSkin(selectedSkinId) : null;
@@ -649,196 +589,6 @@
     if (game.isRunning) { game.isPaused = false; canvas.classList.add('game-running'); previousFrameTime = performance.now(); }
   }
 
-  class FakeRewardedAdProvider {
-    constructor() {
-      this.initialized = false;
-      this.currentAd = null;
-      this.modal = null;
-      this.countdownTimer = null;
-      this.closeReadyTimer = null;
-    }
-
-    initialize() {
-      if (this.initialized) return true;
-      this.modal = document.createElement('div');
-      this.modal.className = 'ad-modal';
-      this.modal.setAttribute('aria-hidden', 'true');
-      this.modal.innerHTML = `
-        <div class="ad-panel" role="dialog" aria-modal="true" aria-label="Development rewarded ad">
-          <div class="ad-header">DEVELOPMENT AD</div>
-          <div class="ad-title">Rewarded Ad Simulation</div>
-          <div class="ad-copy">Your reward is granted after the ad finishes.</div>
-          <div class="ad-countdown">5</div>
-          <div class="ad-progress"><span></span></div>
-          <button type="button" class="ad-close-button">Close</button>
-        </div>
-      `;
-      document.body.append(this.modal);
-      this.modal.querySelector('.ad-close-button').addEventListener('click', () => this.handleCloseAttempt());
-      this.initialized = true;
-      return true;
-    }
-
-    isRewardedAdReady() { return true; }
-    preloadRewarded() { return true; }
-
-    showRewardedAd(config = {}) {
-      if (!this.initialized) this.initialize();
-      if (this.currentAd) return { ok: false, reason: 'busy' };
-      const duration = clamp(Number(config.duration) || random(AD_REWARDS.MIN_AD_SECONDS, AD_REWARDS.MAX_AD_SECONDS), AD_REWARDS.MIN_AD_SECONDS, AD_REWARDS.MAX_AD_SECONDS);
-      this.currentAd = { ...config, duration, remaining: duration, completed: false, closeReady: false };
-      this.renderCurrentAd();
-      this.closeReadyTimer = setTimeout(() => {
-        if (!this.currentAd) return;
-        this.currentAd.closeReady = true;
-        this.renderCurrentAd();
-      }, 1200);
-      this.countdownTimer = setInterval(() => {
-        if (!this.currentAd) return;
-        this.currentAd.remaining = Math.max(0, this.currentAd.remaining - 1);
-        if (this.currentAd.remaining <= 0) {
-          clearInterval(this.countdownTimer);
-          clearTimeout(this.closeReadyTimer);
-          this.currentAd.completed = true;
-          this.currentAd.closeReady = true;
-          this.renderCurrentAd();
-          this.currentAd.onCompleted?.();
-          return;
-        }
-        this.renderCurrentAd();
-      }, 1000);
-      return { ok: true };
-    }
-
-    handleCloseAttempt() {
-      if (!this.currentAd) return;
-      if (!this.currentAd.completed) {
-        this.currentAd.onSkipped?.();
-      }
-      this.closeCurrentAd();
-    }
-
-    closeCurrentAd() {
-      clearInterval(this.countdownTimer);
-      clearTimeout(this.closeReadyTimer);
-      if (!this.modal) return;
-      this.modal.classList.remove('open');
-      this.modal.setAttribute('aria-hidden', 'true');
-      this.currentAd = null;
-    }
-
-    renderCurrentAd() {
-      if (!this.modal) return;
-      const ad = this.currentAd;
-      if (!ad) {
-        this.modal.classList.remove('open');
-        this.modal.setAttribute('aria-hidden', 'true');
-        return;
-      }
-      const countdownValue = ad.completed ? 'REWARD READY' : `${Math.ceil(ad.remaining)}`;
-      const progress = ad.completed ? 100 : ((ad.duration - ad.remaining) / ad.duration) * 100;
-      const closeButton = this.modal.querySelector('.ad-close-button');
-      closeButton.textContent = ad.completed ? 'Close Reward' : 'Close Ad';
-      this.modal.querySelector('.ad-title').textContent = ad.completed ? 'REWARD READY' : 'Rewarded Ad Simulation';
-      this.modal.querySelector('.ad-copy').textContent = ad.completed ? 'Your reward has been granted. Close this popup to continue.' : 'Your reward is granted after the ad finishes.';
-      this.modal.querySelector('.ad-countdown').textContent = countdownValue;
-      this.modal.querySelector('.ad-progress span').style.width = `${Math.min(100, Math.max(0, progress))}%`;
-      this.modal.classList.add('open');
-      this.modal.setAttribute('aria-hidden', 'false');
-    }
-
-    cancelRewarded() { if (!this.currentAd) return; this.handleCloseAttempt(); }
-    destroy() { clearInterval(this.countdownTimer); clearTimeout(this.closeReadyTimer); if (this.modal) { this.modal.remove(); this.modal = null; } this.currentAd = null; this.initialized = false; }
-  }
-
-  class AdManager {
-    constructor(provider) {
-      this.provider = provider;
-      this.isInitialized = false;
-      this.cooldownExpiresAt = 0;
-      this.activeRequest = null;
-    }
-
-    initialize() {
-      if (!this.isInitialized) {
-        this.provider.initialize();
-        this.isInitialized = true;
-      }
-      return true;
-    }
-
-    isRewardedAvailable() {
-      return Boolean(this.provider && this.provider.isRewardedAdReady()) && Date.now() >= this.cooldownExpiresAt && !this.activeRequest;
-    }
-
-    isRewardedBusy() { return Boolean(this.activeRequest); }
-    getCooldownSecondsRemaining() { const seconds = Math.ceil((this.cooldownExpiresAt - Date.now()) / 1000); return Math.max(0, seconds); }
-
-    showRewarded(request = {}) {
-      if (!this.provider || !this.provider.isRewardedAdReady()) {
-        request.onFailure?.();
-        return { ok: false, reason: 'unavailable' };
-      }
-      const cooldownRemaining = this.getCooldownSecondsRemaining();
-      if (cooldownRemaining > 0 || this.activeRequest) {
-        return { ok: false, reason: cooldownRemaining > 0 ? 'cooldown' : 'busy' };
-      }
-      this.initialize();
-      this.activeRequest = request;
-      this.provider.showRewardedAd({
-        duration: request.duration,
-        onCompleted: () => {
-          if (!this.activeRequest) return;
-          const active = this.activeRequest;
-          this.activeRequest = null;
-          this.cooldownExpiresAt = Date.now() + AD_REWARDS.COOLDOWN_SECONDS * 1000;
-          active.onReward?.();
-        },
-        onSkipped: () => {
-          if (this.activeRequest && this.activeRequest === request) this.activeRequest = null;
-          request.onSkip?.();
-        },
-        onFailed: () => {
-          if (this.activeRequest && this.activeRequest === request) this.activeRequest = null;
-          request.onFailure?.();
-        }
-      });
-      return { ok: true };
-    }
-
-    destroy() {
-      this.provider.destroy();
-      this.activeRequest = null;
-      this.isInitialized = false;
-    }
-  }
-
-  const RewardManager = {
-    grantCoins(amount) {
-      addCoins(Number(amount) || 0);
-    },
-    grantPowerUp(powerId) {
-      const power = getPowerById(powerId);
-      if (!power) return false;
-      activatePower(power);
-      return true;
-    },
-    grantDoubleRunReward(baseReward) {
-      const total = Math.max(0, Number(baseReward) || 0) * AD_REWARDS.DOUBLE_RUN_REWARD;
-      addCoins(total);
-      game.runRewardDoubled = true;
-      return total;
-    }
-  };
-
-  const AdManagerInstance = new AdManager(new FakeRewardedAdProvider());
-
-  function getRunRewardBase() {
-    const reward = Math.max(0, Number(game.runCoinsCollected) || 0);
-    game.runRewardBase = reward;
-    return reward;
-  }
-
   // Frame loop and controls --------------------------------------------------
   function frame(now) { const delta = Math.min(.05, (now - previousFrameTime) / 1000 || 0); previousFrameTime = now; updateGame(delta); drawGame(); requestAnimationFrame(frame); }
   function showTitleScreen() {
@@ -847,59 +597,27 @@
     const startButton = document.getElementById('start');
     if (startButton) startButton.onclick = startGame;
   }
-  function awardRunReward() {
-    if (game.rewardGranted) return game.runRewardBase;
-    game.rewardGranted = true;
-    const reward = getRunRewardBase();
-    const previousBestScore = readStoredNumber(STORAGE_KEY.bestScore);
-    const previousBestPhase = readStoredNumber(STORAGE_KEY.bestPhase);
-    const bestScore = Math.max(previousBestScore, Math.floor(game.score));
-    const bestPhase = Math.max(previousBestPhase, game.level);
-    game.newBestScore = game.score > previousBestScore;
-    game.newBestPhase = game.level > previousBestPhase;
-    try { localStorage.setItem(STORAGE_KEY.bestScore, String(bestScore)); localStorage.setItem(STORAGE_KEY.bestPhase, String(bestPhase)); localStorage.setItem('cursorBest', String(bestScore)); } catch { /* Non-persistent browser session. */ }
-    return reward;
-  }
   function applyBackgroundTint() {
     const baseR = 7 + Math.random() * 6;
     const baseG = 10 + Math.random() * 6;
     const baseB = 16 + Math.random() * 6;
     document.body.style.setProperty('--bg-tint-rgb', `${baseR}, ${baseG}, ${baseB}`);
   }
-  function startGame() { applyBackgroundTint(); closeShop(); ui.powerModal.classList.remove('open'); ui.powerModal.setAttribute('aria-hidden', 'true'); resetGame(); game.isRunning = true; game.rewardGranted = false; game.runRewardBase = 0; game.runRewardClaimed = false; game.runRewardDoubled = false; game.runCoinsCollected = 0; canvas.classList.add('game-running'); ui.overlay.style.display = 'none'; previousFrameTime = performance.now(); }
+  function startGame() { applyBackgroundTint(); closeShop(); ui.powerModal.classList.remove('open'); ui.powerModal.setAttribute('aria-hidden', 'true'); resetGame(); game.isRunning = true; game.runCoinsCollected = 0; canvas.classList.add('game-running'); ui.overlay.style.display = 'none'; previousFrameTime = performance.now(); }
   function endGame() {
     game.isRunning = false; game.isOver = true; canvas.classList.remove('game-running');
-    const reward = awardRunReward();
     const bestScore = Math.max(readStoredNumber(STORAGE_KEY.bestScore), Math.floor(game.score));
     const bestPhase = Math.max(readStoredNumber(STORAGE_KEY.bestPhase), game.level);
-    const newBestNotice = game.newBestScore || game.newBestPhase ? '<br><b>NEW BEST RUN!</b>' : '';
-    const totalRunReward = reward * AD_REWARDS.DOUBLE_RUN_REWARD;
-    ui.message.innerHTML = `<span>RUN TERMINATED</span><h2>GAME OVER</h2><p>Phase reached: <b>${game.level}</b><br>Survival time: <b>${formatTime(game.elapsed)}</b><br>Score: <b>${Math.floor(game.score)}</b><br>Coins collected: <b>${reward}</b><br>Best score: <b>${bestScore}</b><br>Best phase: <b>${bestPhase}</b>${newBestNotice}</p><button id="doubleReward" class="reward-option">GET 2X REWARD</button><button id="again" class="reward-option">RESTART</button>`;
+    const collectedCoins = Math.max(0, Number(game.runCoinsCollected) || 0);
+    const hadNewBest = game.score > readStoredNumber(STORAGE_KEY.bestScore) || game.level > readStoredNumber(STORAGE_KEY.bestPhase);
+    const newBestNotice = hadNewBest ? '<br><b>NEW BEST RUN!</b>' : '';
+    ui.message.innerHTML = `<span>RUN TERMINATED</span><h2>GAME OVER</h2><p>Phase reached: <b>${game.level}</b><br>Survival time: <b>${formatTime(game.elapsed)}</b><br>Score: <b>${Math.floor(game.score)}</b><br>Coins collected: <b>${collectedCoins}</b><br>Best score: <b>${bestScore}</b><br>Best phase: <b>${bestPhase}</b>${newBestNotice}</p><button id="again">RESTART</button>`;
     ui.overlay.style.display = 'grid';
-    document.getElementById('doubleReward').onclick = () => {
-      if (game.runRewardClaimed) return;
-      AdManagerInstance.showRewarded({
-        rewardType: 'doubleRunReward',
-        rewardAmount: totalRunReward,
-        onReward: () => {
-          const payout = Math.max(0, reward) * AD_REWARDS.DOUBLE_RUN_REWARD;
-          RewardManager.grantDoubleRunReward(reward);
-          game.runRewardClaimed = true;
-          ui.message.innerHTML = `<span>RUN TERMINATED</span><h2>GAME OVER</h2><p>Phase reached: <b>${game.level}</b><br>Survival time: <b>${formatTime(game.elapsed)}</b><br>Score: <b>${Math.floor(game.score)}</b><br>Coins collected: <b>${reward}</b><br>Reward granted: <b>+${payout} COINS</b><br>Wallet: <b>${formatCoins(wallet)}</b><br>Best score: <b>${bestScore}</b><br>Best phase: <b>${bestPhase}</b>${newBestNotice}</p><button id="again" class="reward-option">RESTART</button>`; document.getElementById('again').onclick = showTitleScreen; },
-        onFailure: () => { ui.message.innerHTML = `<span>RUN TERMINATED</span><h2>AD FAILED</h2><p>Reward not granted.</p><button id="again" class="reward-option">RESTART</button>`; document.getElementById('again').onclick = showTitleScreen; },
-        onSkip: () => { ui.message.innerHTML = `<span>RUN TERMINATED</span><h2>AD SKIPPED</h2><p>Reward not granted.</p><button id="again" class="reward-option">RESTART</button>`; document.getElementById('again').onclick = showTitleScreen; }
-      });
-    };
     document.getElementById('again').onclick = showTitleScreen;
   }
   ui.start.onclick = startGame; ui.restart.onclick = showTitleScreen;
   ui.shop.onclick = openShop; ui.closeShop.onclick = closeShop; ui.shopAction.onclick = buyOrEquipSelectedSkin;
   ui.continueWithoutPower.onclick = continueWithoutPower;
-  ui.powerAdAction.onclick = () => {
-    const power = selectedPowerId ? getPowerById(selectedPowerId) : null;
-    if (power) triggerPowerRewardAd(power);
-  };
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && ui.shopModal.classList.contains('open')) closeShop(); });
-  AdManagerInstance.initialize();
   loadEconomy(); updateCoinUi(); resetGame(); renderShop(); showTitleScreen(); requestAnimationFrame(frame);
 })();
