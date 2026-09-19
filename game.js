@@ -18,7 +18,7 @@
     shopStatus: document.querySelector('#shopStatus'), shopAction: document.querySelector('#shopAction'),
     powerModal: document.querySelector('#powerModal'), phaseTitle: document.querySelector('#phaseTitle'),
     phaseSummary: document.querySelector('#phaseSummary'), powerGrid: document.querySelector('#powerGrid'),
-    continueWithoutPower: document.querySelector('#continueWithoutPower'),
+    powerPointsValue: document.querySelector('#powerPointsValue'), continueWithoutPower: document.querySelector('#continueWithoutPower'),
   };
   const DAMAGE = { projectile: 10, slash: 20, patch: 15, enemy: 10, laser: 20 };
   const PHASE = { WARNING: 'warning', ACTIVE: 'active' };
@@ -96,9 +96,9 @@
       elapsed: 0, levelElapsed: 0, intermission: 1.8, nextAttackIn: 0, nextCoinIn: 4,
       points: 0, pointRemainder: 0, phasePoints: 0, phaseChoices: [],
       score: 0, grazes: 0, invulnerability: 0, screenShake: 0, damageFlash: 0,
-      projectiles: [], slashes: [], patches: [], bursts: [], enemies: [], lasers: [], coins: [], coinPopups: [], particles: [],
+      projectiles: [], slashes: [], patches: [], bursts: [], enemies: [], lasers: [], coins: [], healthOrbs: [], coinPopups: [], particles: [],
       powers: { shield: 0, invincibility: 0, invisibility: 0, slowTime: 0, scoreBoost: 0 }, shieldFlash: 0,
-      banner: 'PHASE 1', runCoinsCollected: 0,
+      banner: 'PHASE 1', runCoinsCollected: 0, nextHealthOrbIn: random(16, 28),
     };
   }
   function resetGame() { game = createGameState(); updateHud(); }
@@ -129,9 +129,9 @@
   }
   function currentDifficulty() {
     return {
-      projectileSpeed: 150 + game.level * 19,
-      attackInterval: Math.max(.28, 1.35 - game.level * .085),
-      warningDuration: Math.max(.42, 1.1 - game.level * .04),
+      projectileSpeed: 150 + game.level * 10,
+      attackInterval: Math.max(.38, 1.45 - game.level * .055),
+      warningDuration: Math.max(.48, 1.18 - game.level * .035),
     };
   }
   function updatePowerUps(delta) {
@@ -251,15 +251,37 @@
     game.patches.push({ x: clamp(player.x + random(-250, 250), radius + 20, ARENA_WIDTH - radius - 20), y: clamp(player.y + random(-180, 180), radius + 20, ARENA_HEIGHT - radius - 20), radius, phase: PHASE.WARNING, timeLeft: random(.65, 1.1), activeDuration: .75 });
   }
   function spawnBurst() { game.bursts.push({ x: clamp(player.x + random(-270, 270), 70, ARENA_WIDTH - 70), y: clamp(player.y + random(-180, 180), 70, ARENA_HEIGHT - 70), timeLeft: .9 }); }
-  function spawnEnemy() { const angle = random(0, Math.PI * 2), radius = Math.max(ARENA_WIDTH, ARENA_HEIGHT) * .48; game.enemies.push({ x: ARENA_WIDTH / 2 + Math.cos(angle) * radius, y: ARENA_HEIGHT / 2 + Math.sin(angle) * radius, radius: 16, speed: 35 + game.level * 3, life: 8 }); }
-  function spawnLaser() { game.lasers.push({ x: random(150, ARENA_WIDTH - 150), y: random(100, ARENA_HEIGHT - 100), angle: random(0, Math.PI), spin: random(-.6, .6), width: 20, phase: PHASE.WARNING, timeLeft: currentDifficulty().warningDuration + .25 }); }
+  function spawnEnemy(kind = Math.random() < .75 ? 'crawler' : 'striker') {
+    const angle = random(0, Math.PI * 2), radius = Math.max(ARENA_WIDTH, ARENA_HEIGHT) * .48;
+    const enemyKind = kind === 'bomber' ? 'bomber' : kind === 'striker' ? 'striker' : 'crawler';
+    const enemy = {
+      x: ARENA_WIDTH / 2 + Math.cos(angle) * radius,
+      y: ARENA_HEIGHT / 2 + Math.sin(angle) * radius,
+      radius: enemyKind === 'bomber' ? 20 : enemyKind === 'striker' ? 14 : 16,
+      speed: enemyKind === 'bomber' ? 22 + game.level * 2 : enemyKind === 'striker' ? 51 + game.level * 4 : 35 + game.level * 3,
+      life: enemyKind === 'bomber' ? 18 + game.level * 2 : enemyKind === 'striker' ? 7 : 8,
+      kind: enemyKind,
+      warning: 0,
+      attackCooldown: enemyKind === 'bomber' ? random(1.2, 2.4) : 0,
+      pulse: random(0, Math.PI * 2),
+    };
+    if (enemyKind === 'bomber') enemy.attackCooldown = random(.8, 1.8);
+    game.enemies.push(enemy);
+  }
+  function spawnLaser() {
+    const x = random(180, ARENA_WIDTH - 180);
+    const y = random(140, ARENA_HEIGHT - 140);
+    const length = Math.hypot(ARENA_WIDTH, ARENA_HEIGHT) + 220;
+    game.lasers.push({ x, y, angle: random(0, Math.PI), spin: random(-.6, .6), width: 20, phase: PHASE.WARNING, timeLeft: currentDifficulty().warningDuration + .25, length });
+  }
   function spawnAttack() {
     if (game.level === 1) return spawnEdgeShots();
     const attacks = [spawnEdgeShots, spawnSlash];
     if (game.level >= 3) attacks.push(spawnPatch);
     if (game.level >= 4) attacks.push(spawnBurst);
-    if (game.level >= 5) attacks.push(spawnEnemy);
+    if (game.level >= 5) attacks.push(() => spawnEnemy(Math.random() < .7 ? 'crawler' : 'striker'));
     if (game.level >= 6) attacks.push(spawnLaser);
+    if (game.level >= 7) attacks.push(() => spawnEnemy(Math.random() < .6 ? 'bomber' : Math.random() < .5 ? 'striker' : 'crawler'));
     attacks[Math.floor(Math.random() * attacks.length)]();
     if (game.level > 7 && Math.random() < .2) setTimeout(() => { if (game.isRunning && !game.isPaused && game.intermission <= 0) spawnEdgeShots(); }, 180);
   }
@@ -308,6 +330,30 @@
     const dx = target.x - x, dy = target.y - y, length = Math.hypot(dx, dy) || 1;
     game.coins.push({ x, y, value, radius: 16, isMoving: true, velocityX: dx / length * (105 + game.level * 5), velocityY: dy / length * (105 + game.level * 5), life: 6.2, age: 0 });
   }
+  function isSafeHealthOrbPosition(x, y, radius = 20) {
+    if (Math.hypot(x - player.x, y - player.y) < 150) return false;
+    const inPatch = game.patches.some(patch => patch.phase === PHASE.ACTIVE && Math.hypot(x - patch.x, y - patch.y) < patch.radius + radius);
+    const nearEnemy = game.enemies.some(enemy => Math.hypot(x - enemy.x, y - enemy.y) < enemy.radius + radius + 30);
+    const inLaser = game.lasers.some(laser => laser.phase === PHASE.ACTIVE && Math.abs((x - laser.x) * -Math.sin(laser.angle) + (y - laser.y) * Math.cos(laser.angle)) < laser.width / 2 + radius);
+    const inSlash = game.slashes.some(slash => slash.phase === PHASE.ACTIVE && Math.abs((x - slash.centerX) * slash.normal.x + (y - slash.centerY) * slash.normal.y) < slash.width / 2 + radius && Math.abs((x - slash.centerX) * slash.direction.x + (y - slash.centerY) * slash.direction.y - slash.position) < 60 + radius);
+    return !inPatch && !nearEnemy && !inLaser && !inSlash;
+  }
+  function findSafeHealthOrbPosition() {
+    const margin = 120;
+    for (let attempt = 0; attempt < 14; attempt++) {
+      const x = random(margin, ARENA_WIDTH - margin), y = random(margin, ARENA_HEIGHT - margin);
+      if (isSafeHealthOrbPosition(x, y)) return { x, y };
+    }
+    return null;
+  }
+  function spawnHealthOrb() {
+    if (game.health >= 100 || game.healthOrbs.length >= 1 || !game.isRunning) return;
+    const position = findSafeHealthOrbPosition();
+    if (!position) return;
+    const healAmount = 25;
+    game.healthOrbs.push({ x: position.x, y: position.y, value: healAmount, radius: 17, life: 14, age: 0, pulse: Math.random() * Math.PI * 2 });
+    game.nextHealthOrbIn = random(16, 28);
+  }
 
   // Attack updates -----------------------------------------------------------
   function updateProjectiles(delta) {
@@ -346,7 +392,51 @@
     game.bursts = game.bursts.filter(burst => !burst.dead);
   }
   function updateEnemies(delta) {
-    for (const enemy of game.enemies) { if (game.powers.invisibility <= 0) { const dx = player.x - enemy.x, dy = player.y - enemy.y, length = Math.hypot(dx, dy) || 1; enemy.x += dx / length * enemy.speed * delta; enemy.y += dy / length * enemy.speed * delta; } enemy.life -= delta; if (isNearPlayer(enemy, enemy.radius + 8)) dealDamage(DAMAGE.enemy); if (enemy.life <= 0) enemy.dead = true; }
+    for (const enemy of game.enemies) {
+      const dx = player.x - enemy.x, dy = player.y - enemy.y, length = Math.hypot(dx, dy) || 1;
+      const dirX = dx / length, dirY = dy / length;
+      if (enemy.kind === 'striker') {
+        enemy.x += dirX * enemy.speed * delta;
+        enemy.y += dirY * enemy.speed * delta;
+        enemy.life -= delta;
+        if (isNearPlayer(enemy, enemy.radius + 8)) dealDamage(DAMAGE.enemy + 4);
+      } else if (enemy.kind === 'bomber') {
+        enemy.attackCooldown -= delta;
+        if (enemy.warning > 0) {
+          enemy.warning -= delta;
+          enemy.x += dirX * enemy.speed * .45 * delta;
+          enemy.y += dirY * enemy.speed * .45 * delta;
+          if (enemy.warning <= 0) {
+            const count = 14;
+            for (let index = 0; index < count; index++) {
+              const angle = (index / count) * Math.PI * 2 + random(-.15, .15);
+              addProjectile(enemy.x, enemy.y, enemy.x + Math.cos(angle) * 180, enemy.y + Math.sin(angle) * 180, 150 + game.level * 12);
+            }
+            if (isNearPlayer(enemy, enemy.radius + 26)) dealDamage(28);
+            enemy.dead = true;
+          }
+        } else {
+          if (game.powers.invisibility <= 0) {
+            enemy.x += dirX * enemy.speed * .7 * delta;
+            enemy.y += dirY * enemy.speed * .7 * delta;
+          }
+          if (enemy.attackCooldown <= 0 && Math.hypot(player.x - enemy.x, player.y - enemy.y) < 220) {
+            enemy.warning = .8;
+            enemy.attackCooldown = 2.6;
+          }
+        }
+        enemy.life -= delta;
+        if (isNearPlayer(enemy, enemy.radius + 10)) dealDamage(DAMAGE.enemy + 6);
+      } else {
+        if (game.powers.invisibility <= 0) {
+          enemy.x += dirX * enemy.speed * delta;
+          enemy.y += dirY * enemy.speed * delta;
+        }
+        enemy.life -= delta;
+        if (isNearPlayer(enemy, enemy.radius + 8)) dealDamage(DAMAGE.enemy);
+      }
+      if (enemy.life <= 0) enemy.dead = true;
+    }
     game.enemies = game.enemies.filter(enemy => !enemy.dead);
   }
   function updateLasers(delta) {
@@ -371,6 +461,27 @@
     game.coins = game.coins.filter(coin => !coin.dead && !coin.collected);
     game.coinPopups = game.coinPopups.filter(popup => popup.life > 0);
   }
+  function updateHealthOrbs(delta) {
+    for (const orb of game.healthOrbs) {
+      orb.age += delta;
+      orb.life -= delta;
+      if (isNearPlayer(orb, orb.radius + 12)) {
+        const healAmount = Math.min(25, 100 - game.health);
+        if (healAmount > 0) {
+          game.health = Math.min(100, game.health + healAmount);
+          game.coinPopups.push({ x: player.x, y: player.y - 18, value: healAmount, life: .8, color: '#7ef8b3' });
+          for (let index = 0; index < 12; index++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = random(20, 70);
+            game.particles.push({ x: orb.x, y: orb.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, radius: random(2, 4), color: '#7ef8b3', life: random(.35, .7), maxLife: .7 });
+          }
+        }
+        orb.collected = true;
+      }
+      if (orb.life <= 0) orb.dead = true;
+    }
+    game.healthOrbs = game.healthOrbs.filter(orb => !orb.dead && !orb.collected);
+  }
   function completePhase() {
     clearArena();
     addPoints(10);
@@ -378,7 +489,8 @@
     game.phaseChoices = selectPowerChoices();
     canvas.classList.remove('game-running');
     ui.phaseTitle.innerHTML = `PHASE ${game.level} <i>SURVIVED</i>`;
-    ui.phaseSummary.textContent = `Points earned: +${game.phasePoints} · Current points: ${game.points}`;
+    ui.phaseSummary.textContent = `Points earned: +${game.phasePoints}`;
+    ui.powerPointsValue.textContent = game.points;
     renderPowerChoices();
     ui.powerModal.classList.add('open');
     ui.powerModal.setAttribute('aria-hidden', 'false');
@@ -393,6 +505,9 @@
     game.intermission = 1.2;
     game.nextAttackIn = .35;
     game.nextCoinIn = 4;
+    if (game.level > 1 && game.level % 2 === 0 && Math.random() < .75) {
+      setTimeout(() => { if (game.isRunning && !game.isPaused) spawnHealthOrb(); }, 220);
+    }
     game.banner = `PHASE ${game.level}`;
     game.isPaused = false;
     canvas.classList.add('game-running');
@@ -410,8 +525,9 @@
     if (game.levelElapsed > 12) { completePhase(); return; }
     game.nextAttackIn -= delta; if (game.nextAttackIn <= 0) { spawnAttack(); game.nextAttackIn = currentDifficulty().attackInterval * random(.7, 1.25); }
     game.nextCoinIn -= delta; if (game.nextCoinIn <= 0) { spawnCoin(); game.nextCoinIn = random(Math.max(4.2, 7 - game.level * .12), Math.max(6.2, 10 - game.level * .12)); }
+    game.nextHealthOrbIn -= delta; if (game.nextHealthOrbIn <= 0) { spawnHealthOrb(); }
     const attackDelta = delta * attackTimeScale();
-    updateProjectiles(attackDelta); updateSlashes(attackDelta); updatePatches(attackDelta); updateBursts(attackDelta); updateEnemies(attackDelta); updateLasers(attackDelta); updateCoins(delta);
+    updateProjectiles(attackDelta); updateSlashes(attackDelta); updatePatches(attackDelta); updateBursts(attackDelta); updateEnemies(attackDelta); updateLasers(attackDelta); updateCoins(delta); updateHealthOrbs(delta);
     for (const particle of game.particles) { particle.x += particle.vx * delta; particle.y += particle.vy * delta; particle.vx *= .96; particle.vy *= .96; particle.life -= delta; }
     game.particles = game.particles.filter(particle => particle.life > 0);
     updateHud();
@@ -451,13 +567,42 @@
     for (const patch of game.patches) { const active = patch.phase === PHASE.ACTIVE, pulse = active ? 1 : 1 + Math.sin(performance.now() / 90) * .08; context.setLineDash(active ? [] : [6, 6]); drawCircle(patch.x, patch.y, patch.radius * pulse, active ? 'rgba(255,51,75,.25)' : 'rgba(255,103,68,.08)', active ? '#ff3557' : '#ff9a5b', active ? 3 : 2); context.setLineDash([]); }
     for (const burst of game.bursts) { drawCircle(burst.x, burst.y, 18 + (1 - burst.timeLeft / .9) * 34, null, '#ffca61', 2); drawCircle(burst.x, burst.y, 5, '#ffca61'); }
     for (const slash of game.slashes) { const start = { x: slash.centerX - slash.direction.x * 900, y: slash.centerY - slash.direction.y * 900 }, end = { x: slash.centerX + slash.direction.x * 900, y: slash.centerY + slash.direction.y * 900 }; if (slash.phase === PHASE.WARNING) { strokeLine(start, end, 'rgba(255,91,87,.4)', slash.width); strokeLine(start, end, '#ffad7a'); } else { const offset = { x: slash.direction.x * slash.position, y: slash.direction.y * slash.position }; strokeLine({ x: start.x + offset.x, y: start.y + offset.y }, { x: end.x + offset.x, y: end.y + offset.y }, '#ff3251', slash.width); strokeLine({ x: start.x + offset.x, y: start.y + offset.y }, { x: end.x + offset.x, y: end.y + offset.y }, '#fff0db', 2); } }
-    for (const laser of game.lasers) { const direction = { x: Math.cos(laser.angle), y: Math.sin(laser.angle) }, start = { x: laser.x - direction.x * 900, y: laser.y - direction.y * 900 }, end = { x: laser.x + direction.x * 900, y: laser.y + direction.y * 900 }; strokeLine(start, end, laser.phase === PHASE.ACTIVE ? '#d92cff' : 'rgba(206,97,255,.38)', laser.phase === PHASE.ACTIVE ? laser.width : 2); if (laser.phase === PHASE.WARNING) strokeLine(start, end, 'rgba(240,201,255,.6)'); }
+    for (const laser of game.lasers) {
+      const direction = { x: Math.cos(laser.angle), y: Math.sin(laser.angle) };
+      const start = { x: laser.x - direction.x * laser.length, y: laser.y - direction.y * laser.length };
+      const end = { x: laser.x + direction.x * laser.length, y: laser.y + direction.y * laser.length };
+      strokeLine(start, end, laser.phase === PHASE.ACTIVE ? '#d92cff' : 'rgba(206,97,255,.38)', laser.phase === PHASE.ACTIVE ? laser.width : 2);
+      if (laser.phase === PHASE.WARNING) strokeLine(start, end, 'rgba(240,201,255,.6)');
+    }
     for (const projectile of game.projectiles) { drawCircle(projectile.x, projectile.y, projectile.radius, projectile.color || '#ff5972'); drawCircle(projectile.x, projectile.y, projectile.radius + 4, null, 'rgba(255,89,114,.28)'); }
     for (const coin of game.coins) drawCoin(coin);
+    for (const orb of game.healthOrbs) {
+      const bob = Math.sin(orb.age * 5) * 3;
+      context.save();
+      context.translate(orb.x, orb.y + bob);
+      context.shadowColor = '#7ef8b3';
+      context.shadowBlur = 16;
+      drawCircle(0, 0, orb.radius + 4, 'rgba(126, 248, 179, .18)', '#7ef8b3', 2);
+      drawCircle(0, 0, orb.radius - 3, '#7ef8b3');
+      context.shadowBlur = 0;
+      context.fillStyle = '#071a13';
+      context.font = '700 12px IBM Plex Mono';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText('+', 0, 1);
+      context.restore();
+    }
     for (const particle of game.particles) { context.globalAlpha = Math.max(0, particle.life / particle.maxLife); context.fillStyle = particle.color; context.beginPath(); context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2); context.fill(); }
     context.globalAlpha = 1;
-    for (const enemy of game.enemies) drawCircle(enemy.x, enemy.y, enemy.radius, '#b44dff', '#efc5ff', 2);
-    for (const popup of game.coinPopups) { context.globalAlpha = popup.life / .75; context.fillStyle = '#ffd36b'; context.font = '700 13px IBM Plex Mono'; context.textAlign = 'center'; context.fillText(`+$${popup.value}`, popup.x, popup.y); context.globalAlpha = 1; }
+    for (const enemy of game.enemies) {
+      const palette = enemy.kind === 'bomber' ? { fill: '#ff8d5c', stroke: '#ffd49d' } : enemy.kind === 'striker' ? { fill: '#67d8ff', stroke: '#dff8ff' } : { fill: '#b44dff', stroke: '#efc5ff' };
+      drawCircle(enemy.x, enemy.y, enemy.radius, palette.fill, palette.stroke, 2);
+      if (enemy.kind === 'bomber' && enemy.warning > 0) {
+        const pulse = 1 + (0.8 - enemy.warning) * 1.6;
+        drawCircle(enemy.x, enemy.y, enemy.radius + 12 + pulse * 12, null, 'rgba(255,170,110,.55)', 2);
+      }
+    }
+    for (const popup of game.coinPopups) { context.globalAlpha = popup.life / .75; context.fillStyle = popup.color || '#ffd36b'; context.font = '700 13px IBM Plex Mono'; context.textAlign = 'center'; context.fillText(`+$${popup.value}`, popup.x, popup.y); context.globalAlpha = 1; }
     if (player.inside && !game.isOver) { const ringColor = cursorRingColor(); if (game.powers.shield > 0) drawCircle(player.x, player.y, 19 + Math.sin(performance.now() / 100) * 2, null, game.shieldFlash ? '#ffffff' : '#70dcff', 2); if (game.powers.invincibility > 0) { context.globalAlpha = .5 + Math.sin(performance.now() / 65) * .25; drawCircle(player.x, player.y, 25, null, '#ffef75', 2); context.globalAlpha = 1; } if (game.powers.invisibility > 0) { context.setLineDash([3, 4]); drawCircle(player.x, player.y, 17, null, '#b4a6ff', 1); context.setLineDash([]); } context.globalAlpha = game.health <= 39 ? .55 : .35; drawCircle(player.x, player.y, 15 + (game.invulnerability ? 3 : 0), null, ringColor, 2); context.globalAlpha = 1; drawCircle(player.x, player.y, 7, cursorFill()); }
     context.restore();
     if (game.damageFlash) { context.fillStyle = `rgba(255,40,55,${game.damageFlash * .35})`; context.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT); }
@@ -467,6 +612,7 @@
   // Phase and power-up selection --------------------------------------------
   function renderPowerChoices() {
     selectedPowerId = null;
+    ui.powerPointsValue.textContent = game.points;
     ui.powerGrid.replaceChildren();
     for (const power of game.phaseChoices) {
       const affordable = game.points >= power.cost;
@@ -483,7 +629,7 @@
         </button>
       `;
       const selectButton = card.querySelector('.power-select-button');
-      selectButton.onclick = () => {
+      const handleSelect = () => {
         selectedPowerId = power.id;
         for (const choice of ui.powerGrid.children) {
           const current = choice.querySelector('.power-select-button');
@@ -492,6 +638,12 @@
         }
         choosePower(power, card);
       };
+      selectButton.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        handleSelect();
+      };
+      card.onclick = handleSelect;
       ui.powerGrid.append(card);
     }
     ui.continueWithoutPower.hidden = false;
@@ -500,12 +652,14 @@
     if (game.powerSelecting) return;
     if (game.points < power.cost) {
       ui.phaseSummary.textContent = `${power.name} costs ${power.cost} points. Earn more to claim it or continue without a power-up.`;
+      ui.powerPointsValue.textContent = game.points;
       return;
     }
     game.powerSelecting = true;
     if (card) card.classList.add('selected');
     for (const choice of ui.powerGrid.children) choice.querySelector('.power-select-button').disabled = true;
     game.points -= power.cost;
+    ui.powerPointsValue.textContent = game.points;
     activatePower(power);
     ui.phaseSummary.textContent = `${power.name} acquired — entering the next phase.`;
     updateHud();
