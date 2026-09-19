@@ -1,13 +1,104 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Cursor Survival</title><link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <main class="shell"><header><div><span class="eyebrow">MOUSE BULLET HELL</span><h1>CURSOR <i>SURVIVAL</i></h1></div><div class="header-actions"><button id="shop">SHOP</button><button id="restart">RESTART</button></div></header>
-  <section class="hud"><div class="health"><span>HP</span><div class="bar"><b id="hpFill"></b></div><strong id="hp">100</strong></div><div><small>PHASE</small><strong id="level">1</strong></div><div><small>TIME</small><strong id="time">00:00.0</strong></div><div><small>GRAZES</small><strong id="graze">0</strong></div><div class="coins-hud"><small>COINS</small><strong id="coins">0</strong></div><div class="points-hud"><small>POINTS</small><strong id="points">0</strong></div><div class="power-hud"><small>POWER</small><strong id="powerStatus">—</strong></div></section>
-  <div id="stage"><canvas id="game" width="1100" height="650"></canvas><div id="overlay"><div id="message"><span>MOVE YOUR MOUSE INSIDE THE ARENA</span><h2>CURSOR SURVIVAL</h2><p>Survive the patterns. Every attack warns before it strikes.</p><button id="start">ENTER ARENA</button></div></div></div>
-  <footer>KEEP MOVING · READ THE TELEGRAPHS · SURVIVE THE CHAOS</footer>
-  </main><div id="shopModal" class="shop-modal" aria-hidden="true"><section class="shop-panel" role="dialog" aria-modal="true" aria-labelledby="shopTitle"><header class="shop-header"><div><span class="eyebrow">CURSOR COSMETICS</span><h2 id="shopTitle">THE <i>SHOP</i></h2></div><button id="closeShop" class="close-shop" aria-label="Close shop">×</button></header><div class="shop-balance">COINS <strong id="shopCoins">0</strong></div><div id="skinGrid" class="skin-grid"></div><p id="shopStatus" class="shop-status">Select a cursor skin.</p><button id="shopAction" class="shop-action" disabled>SELECT A SKIN</button><button id="shopAdAction" class="shop-ad-action" hidden>WATCH ADS FOR +50 COINS</button></section></div><div id="powerModal" class="power-modal" aria-hidden="true"><section class="power-panel" role="dialog" aria-modal="true" aria-labelledby="phaseTitle"><span class="eyebrow">PHASE COMPLETE</span><h2 id="phaseTitle">PHASE 1 <i>SURVIVED</i></h2><p id="phaseSummary" class="phase-summary"></p><h3>CHOOSE ONE POWER-UP</h3><div id="powerGrid" class="power-grid"></div><div class="power-actions"><button id="continueWithoutPower" class="continue-power" hidden>CONTINUE WITHOUT A POWER-UP</button><button id="powerAdAction" class="power-ad-action" hidden>WATCH ADS FOR POWER-UP</button></div></section></div><script src="game.js"></script>
-</body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Cursor Survival</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <div>
+          <span class="eyebrow">MOUSE BULLET HELL</span>
+          <h1>CURSOR <i>SURVIVAL</i></h1>
+        </div>
+        <div class="header-actions">
+          <button id="shop">SHOP</button><button id="restart">RESTART</button>
+        </div>
+      </header>
+      <section class="hud">
+        <div class="health">
+          <span>HP</span>
+          <div class="bar"><b id="hpFill"></b></div>
+          <strong id="hp">100</strong>
+        </div>
+        <div><small>PHASE</small><strong id="level">1</strong></div>
+        <div><small>TIME</small><strong id="time">00:00.0</strong></div>
+        <div><small>GRAZES</small><strong id="graze">0</strong></div>
+        <div class="coins-hud">
+          <small>COINS</small><strong id="coins">0</strong>
+        </div>
+        <div class="points-hud">
+          <small>POINTS</small><strong id="points">0</strong>
+        </div>
+        <div class="power-hud">
+          <small>POWER</small><strong id="powerStatus">—</strong>
+        </div>
+      </section>
+      <div id="stage">
+        <canvas id="game" width="1100" height="650"></canvas>
+        <div id="overlay">
+          <div id="message">
+            <span>MOVE YOUR MOUSE INSIDE THE ARENA</span>
+            <h2>CURSOR SURVIVAL</h2>
+            <p>Survive the patterns. Every attack warns before it strikes.</p>
+            <button id="start">ENTER ARENA</button>
+          </div>
+        </div>
+      </div>
+      <footer>KEEP MOVING · READ THE TELEGRAPHS · SURVIVE THE CHAOS</footer>
+    </main>
+    <div id="shopModal" class="shop-modal" aria-hidden="true">
+      <section
+        class="shop-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shopTitle"
+      >
+        <header class="shop-header">
+          <div>
+            <span class="eyebrow">CURSOR COSMETICS</span>
+            <h2 id="shopTitle">THE <i>SHOP</i></h2>
+          </div>
+          <button id="closeShop" class="close-shop" aria-label="Close shop">
+            ×
+          </button>
+        </header>
+        <div class="shop-balance">COINS <strong id="shopCoins">0</strong></div>
+        <div id="skinGrid" class="skin-grid"></div>
+        <p id="shopStatus" class="shop-status">Select a cursor skin.</p>
+        <button id="shopAction" class="shop-action" disabled>
+          SELECT A SKIN</button
+        ><button id="shopAdAction" class="shop-ad-action" hidden>
+          WATCH ADS FOR +50 COINS
+        </button>
+      </section>
+    </div>
+    <div id="powerModal" class="power-modal" aria-hidden="true">
+      <section
+        class="power-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="phaseTitle"
+      >
+        <span class="eyebrow">PHASE COMPLETE</span>
+        <h2 id="phaseTitle">PHASE 1 <i>SURVIVED</i></h2>
+        <p id="phaseSummary" class="phase-summary"></p>
+        <h3>CHOOSE ONE POWER-UP</h3>
+        <div id="powerGrid" class="power-grid"></div>
+        <div class="power-actions">
+          <button id="continueWithoutPower" class="continue-power" hidden>
+            CONTINUE WITHOUT A POWER-UP</button
+          ><button id="powerAdAction" class="power-ad-action" hidden>
+            WATCH ADS FOR POWER-UP
+          </button>
+        </div>
+      </section>
+    </div>
+    <script src="game.js"></script>
+
+    <!-- adsterra social bar -->
+    <script src="https://pl31415353.profitableratecpmnetwork.com/23/98/8f/23988fc76d0dd757bf9c4f15336d1fe1.js"></script>
+  </body>
+</html>
