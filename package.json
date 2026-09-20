@@ -1,10 +1,29 @@
 {
-  "name": "Cursor-Survival",
+  "name": "cursor-survival",
   "main": "index.html",
   "window": {
     "title": "My HTML5 Game",
     "width": 800,
     "height": 600,
     "toolbar": false
+  },
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/laksh-cdr/Cursor-Survival.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/laksh-cdr/Cursor-Survival/issues"
+  },
+  "homepage": "https://github.com/laksh-cdr/Cursor-Survival#readme",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
   }
 }
